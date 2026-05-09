@@ -1,0 +1,3 @@
+[tasks.scan]
+command = "cargo"
+args = ["run", "--", "--timeout", "2"]
