@@ -1,3 +1,16 @@
+[tasks.run]
+alias = "scan"
+
 [tasks.scan]
 command = "cargo"
-args = ["run", "--", "--timeout", "2"]
+args = ["run", "--", "--timeout", "5"]
+
+[tasks.build-wasm]
+command = "wasm-pack"
+args = ["build", "--target", "web", "--scope", "my-app", "--", "--features", "wasm"]
+
+[tasks.clean-log]
+script = [
+    "rm -f check_log.txt",
+    "echo 'Log file deleted.'"
+]

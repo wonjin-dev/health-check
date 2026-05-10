@@ -3,8 +3,8 @@ use indicatif::{ProgressBar, ProgressStyle};
 use serde::Deserialize;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
-use std::time::Duration;
 use chrono::Local;
+use health_check::core_check_site;
 
 #[derive(Parser)]
 struct Cli {
@@ -30,29 +30,21 @@ async fn main() -> anyhow::Result<()> {
         .progress_chars("#>-"));
 
     let mut handles = vec![];
-    let timeout_duration = Duration::from_secs(args.timeout);
 
     for url in config.urls {
         let pb_clone = pb.clone();
-        let client = reqwest::Client::builder()
-            .timeout(timeout_duration)
-            .build()?;
+        let timeout = args.timeout;
 
         let handle = tokio::spawn(async move {
-            let result = match client.get(&url).send().await {
-                Ok(resp) if resp.status().is_success() => ("✅", url, resp.status().to_string()),
-                Ok(resp) => ("⚠️", url, resp.status().to_string()),
-                Err(_) => ("❌", url, "Connection Failed".to_string()),
-            };
-            
-            save_to_log(result.0, &result.1, &result.2);
+            let (icon, url, detail) = core_check_site(url, timeout).await;
+            save_to_log(&icon, &url, &detail);
             pb_clone.inc(1);
         });
         handles.push(handle);
     }
 
     for handle in handles {
-        let _ = handle.await;
+        let _ = handle.await?;
     }
 
     pb.finish_with_message("완료");
