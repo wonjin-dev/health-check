@@ -1,8 +1,7 @@
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
-use serde::Deserialize;
-use std::fs::{self, OpenOptions};
-use std::io::Write;
+use serde::{Deserialize, Serialize};
+use std::fs;
 use chrono::Local;
 use health_check::core_check_site;
 
@@ -15,6 +14,14 @@ struct Cli {
 #[derive(Deserialize)]
 struct Config {
     urls: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct LogEntry {
+    time: String,
+    status: String,
+    url: String,
+    detail: String,
 }
 
 #[tokio::main]
@@ -37,7 +44,7 @@ async fn main() -> anyhow::Result<()> {
 
         let handle = tokio::spawn(async move {
             let (icon, url, detail) = core_check_site(url, timeout).await;
-            save_to_log(&icon, &url, &detail);
+            save_to_json_log(&icon, &url, &detail);
             pb_clone.inc(1);
         });
         handles.push(handle);
@@ -51,15 +58,26 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn save_to_log(status_icon: &str, url: &str, detail: &str) {
-    let now = Local::now().format("%Y-%m-%d %H:%M:%S");
-    let log_line = format!("[{}] {} {}: {}\n", now, status_icon, url, detail);
+fn save_to_json_log(status_icon: &str, url: &str, detail: &str) {
+    let now = Local::now();
+    let date_str = now.format("%Y-%m-%d").to_string();
+    let file_name = format!("{}.json", date_str);
+    
+    let new_entry = LogEntry {
+        time: now.format("%H:%M:%S").to_string(),
+        status: status_icon.to_string(),
+        url: url.to_string(),
+        detail: detail.to_string(),
+    };
 
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("check_log.txt")
-        .unwrap();
+    let mut log_list: Vec<LogEntry> = if let Ok(content) = fs::read_to_string(&file_name) {
+        serde_json::from_str(&content).unwrap_or_else(|_| vec![])
+    } else {
+        vec![]
+    };
 
-    file.write_all(log_line.as_bytes()).unwrap();
+    log_list.push(new_entry);
+
+    let json_data = serde_json::to_string_pretty(&log_list).expect("JSON 직렬화 실패");
+    fs::write(file_name, json_data).expect("파일 쓰기 실패");
 }
