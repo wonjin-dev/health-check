@@ -1,12 +1,10 @@
-use reqwest::Client;
-use std::time::Duration;
-
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
+#[cfg(feature = "cli")]
 pub async fn core_check_site(url: String, timeout_secs: u64) -> (String, String, String) {
-    let client = Client::builder()
-        .timeout(Duration::from_secs(timeout_secs))
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(timeout_secs))
         .build()
         .unwrap_or_default();
 
@@ -14,18 +12,24 @@ pub async fn core_check_site(url: String, timeout_secs: u64) -> (String, String,
         Ok(resp) => {
             let status = resp.status();
             if status.is_success() {
-                ("✅".to_string(), url, status.to_string())
+                ("✅".to_string(), url, format!("{}", status))
             } else {
-                ("⚠️".to_string(), url, status.to_string())
+                ("⚠️".to_string(), url, format!("{}", status))
             }
         }
-        Err(_) => ("❌".to_string(), url, "Connection Failed".to_string()),
+        Err(e) => ("❌".to_string(), url, e.to_string()),
     }
 }
 
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub async fn check_site_wasm(url: String, timeout_secs: u64) -> String {
-    let (icon, url, detail) = core_check_site(url, timeout_secs).await;
-    format!("{} {}: {}", icon, url, detail)
+pub async fn check_site_wasm(url: String) -> Result<JsValue, JsValue> {
+    let client = reqwest::Client::new();
+    match client.get(&url).send().await {
+        Ok(resp) => {
+            let status = resp.status().to_string();
+            Ok(JsValue::from_str(&status))
+        }
+        Err(e) => Err(JsValue::from_str(&e.to_string())),
+    }
 }

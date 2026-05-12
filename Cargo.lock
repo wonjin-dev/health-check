@@ -401,11 +401,13 @@ dependencies = [
  "chrono",
  "clap",
  "indicatif",
+ "js-sys",
  "reqwest",
  "serde",
  "serde_json",
  "tokio",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]

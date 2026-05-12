@@ -7,10 +7,4 @@ args = ["run", "--", "--timeout", "5"]
 
 [tasks.build-wasm]
 command = "wasm-pack"
-args = ["build", "--target", "web", "--scope", "my-app", "--", "--features", "wasm"]
-
-[tasks.clean-log]
-script = [
-    "rm -f check_log.txt",
-    "echo 'Log file deleted.'"
-]
+args = ["build", "--target", "web", "--", "--no-default-features", "--features", "wasm"]
